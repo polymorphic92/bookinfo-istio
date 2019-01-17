@@ -1,0 +1,20 @@
+#!/bin/bash
+
+#start minikube 
+minikube start --vm-driver="virtualbox" --memory=8192 --cpus=4
+
+#install istio 
+kubectl apply -f "$1/install/kubernetes/helm/istio/templates/crds.yaml"
+sleep 25
+kubectl apply -f "$1/install/kubernetes/istio-demo-auth.yaml"
+sleep 25
+
+#deploy bookinfo
+kubectl create namespace bookinfo
+kubectl config set-context $(kubectl config current-context) --namespace=bookinfo
+kubectl apply -f <(istioctl kube-inject -f "$1/samples/bookinfo/platform/kube/bookinfo.yaml")
+sleep 10
+kubectl apply -f "$1/samples/bookinfo/networking/bookinfo-gateway.yaml"
+
+
+# minikube dashboard 

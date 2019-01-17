@@ -1,0 +1,88 @@
+#!/bin/bash
+
+echo "Starting ..."
+# clean up ##################################################################################################################################################################
+oc cluster down
+
+sleep 3
+# start minishift
+oc cluster up --skip-registry-check
+echo "loging into cluster"
+oc login --insecure-skip-tls-verify -u system:admin
+# install istio ##################################################################################################################################################################
+
+oc new-project istio-system
+oc adm policy add-scc-to-user anyuid -z istio-ingress-service-account -n istio-system
+oc adm policy add-scc-to-user anyuid -z default -n istio-system
+oc adm policy add-scc-to-user anyuid -z prometheus -n istio-system
+oc adm policy add-scc-to-user anyuid -z istio-egressgateway-service-account -n istio-system
+oc adm policy add-scc-to-user anyuid -z istio-citadel-service-account -n istio-system
+oc adm policy add-scc-to-user anyuid -z istio-ingressgateway-service-account -n istio-system
+oc adm policy add-scc-to-user anyuid -z istio-cleanup-old-ca-service-account -n istio-system
+oc adm policy add-scc-to-user anyuid -z istio-mixer-post-install-account -n istio-system
+oc adm policy add-scc-to-user anyuid -z istio-mixer-service-account -n istio-system
+oc adm policy add-scc-to-user anyuid -z istio-pilot-service-account -n istio-system
+oc adm policy add-scc-to-user anyuid -z istio-sidecar-injector-service-account -n istio-system
+oc adm policy add-scc-to-user anyuid -z istio-galley-service-account -n istio-system
+
+oc apply -f "releases/istio-$1/install/kubernetes/helm/istio/templates/crds.yaml"
+sleep 25
+oc apply -f "releases/istio-$1/install/kubernetes/istio-demo.yaml"
+
+oc expose svc istio-ingressgateway
+oc expose svc servicegraph
+oc expose svc grafana
+oc expose svc prometheus
+oc expose svc tracing
+oc adm policy add-role-to-user admin admin
+
+
+# deploy bookinfo ##################################################################################################################################################################
+sleep 120 
+oc new-project bookinfo
+oc adm policy add-scc-to-user privileged -z default -n bookinfo
+
+oc apply -f <(istioctl kube-inject -f "releases/istio-$1/samples/bookinfo/platform/kube/bookinfo.yaml")
+oc apply -f "releases/istio-$1/samples/bookinfo/networking/bookinfo-gateway.yaml"
+oc apply -f "releases/istio-$1/samples/bookinfo/networking/destination-rule-all.yaml"
+oc adm policy add-role-to-user admin admin
+
+INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
+SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+
+GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
+
+echo "INGRESS_PORT:        $INGRESS_PORT"
+echo "SECURE_INGRESS_PORT: $SECURE_INGRESS_PORT"
+echo -e "INGRESS_HOST:     $INGRESS_HOST\n"
+echo "To test run: curl -o /dev/null -s -w '%{http_code}\n' http://${GATEWAY_URL}/productpage"
+
+# install kali ##################################################################################################################################################################
+
+sleep 120
+# URLS for Jaeger and Grafana
+JAEGER_URL="http://tracing-istio-system.127.0.0.1.nip.io"
+GRAFANA_URL="http://grafana-istio-system.127.0.0.1.nip.io"
+# VERSION_LABEL="v0.9.0"
+
+curl -L http://git.io/getLatestKiali | bash
+
+# # Installs Kiali's configmap
+# curl https://raw.githubusercontent.com/kiali/kiali/${VERSION_LABEL}/deploy/openshift/kiali-configmap.yaml | \
+#   VERSION_LABEL=${VERSION_LABEL} \
+#   JAEGER_URL=${JAEGER_URL}  \
+#   GRAFANA_URL=${GRAFANA_URL} envsubst | oc create -n istio-system -f -
+
+# # Installs Kiali's secrets
+# curl https://raw.githubusercontent.com/kiali/kiali/${VERSION_LABEL}/deploy/openshift/kiali-secrets.yaml | \
+#   VERSION_LABEL=${VERSION_LABEL} envsubst | oc create -n istio-system -f -
+
+# # Deploys Kiali to the cluster
+# curl https://raw.githubusercontent.com/kiali/kiali/${VERSION_LABEL}/deploy/openshift/kiali.yaml | \
+#   VERSION_LABEL=${VERSION_LABEL}  \
+#   IMAGE_NAME=kiali/kiali \
+#   IMAGE_VERSION=${VERSION_LABEL}  \
+#   NAMESPACE=istio-system  \
+#   VERBOSE_MODE=4  \
+#   IMAGE_PULL_POLICY_TOKEN="imagePullPolicy: Always" envsubst | oc create -n istio-system -f -
