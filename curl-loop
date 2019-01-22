@@ -1,6 +1,15 @@
 #!/bin/bash
 
+
+INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
+SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+
+GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
+echo "Hitting : http://${GATEWAY_URL}/productpage"
+
+
 while true
 do
-  echo -e "Status Code:\t$( curl -o /dev/null -s -w '%{http_code}\n' http://172.29.198.79:80/productpage)"
+  echo -e "Status Code:\t$( curl  -o /dev/null -s -w '%{http_code}\n'   http://${GATEWAY_URL}/productpage)"
 done

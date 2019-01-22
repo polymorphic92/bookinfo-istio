@@ -1,6 +1,8 @@
 #!/bin/bash
 
-
-
 oc apply -f "releases/istio-$1/samples/bookinfo/networking/virtual-service-all-v1.yaml"
 oc apply -f "releases/istio-$1/samples/bookinfo/networking/virtual-service-reviews-test-v2.yaml"
+
+sleep 3.5
+
+oc apply -f "releases/istio-$1/samples/bookinfo/networking/virtual-service-ratings-test-abort.yaml"
