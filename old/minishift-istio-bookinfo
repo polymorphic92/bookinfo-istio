@@ -8,6 +8,7 @@ vm_driver="virtualbox"
 profile="istio-tutorial"
 
 # clean up ##################################################################################################################################################################
+rm -rf ~/.minishift/
 minishift images delete $(minishift images list)
 minishift delete -f  --clear-cache
 minishift profile delete -f $profile 

@@ -1,0 +1,10 @@
+#!/bin/bash
+oc login --insecure-skip-tls-verify -u system:admin
+oc delete project bookinfo istio-system
+oc cluster down
+
+
+sleep 10
+
+sudo findmnt -r -n -o TARGET | grep openshift.local.clusterup/openshift.local.volumes | xargs -r sudo umount
+sudo rm -rf openshift.local.clusterup/
