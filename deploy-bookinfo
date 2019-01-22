@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# deploy bookinfo ##################################################################################################################################################################
+oc login --insecure-skip-tls-verify -u system:admin
+oc new-project bookinfo
+oc adm policy add-scc-to-user privileged -z default -n bookinfo
+
+oc apply -f <(istioctl kube-inject -f "releases/istio-$1/samples/bookinfo/platform/kube/bookinfo.yaml")
+oc apply -f "releases/istio-$1/samples/bookinfo/networking/bookinfo-gateway.yaml"
+oc apply -f "releases/istio-$1/samples/bookinfo/networking/destination-rule-all.yaml"
+oc adm policy add-role-to-user admin admin
+
+INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
+SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+
+GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
+
+echo "INGRESS_PORT:        $INGRESS_PORT"
+echo "SECURE_INGRESS_PORT: $SECURE_INGRESS_PORT"
+echo -e "INGRESS_HOST:     $INGRESS_HOST\n"
+echo "To test run: curl -o /dev/null -s -w '%{http_code}\n' http://${GATEWAY_URL}/productpage"
