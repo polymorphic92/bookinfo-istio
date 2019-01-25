@@ -1,4 +1,4 @@
-*Start cluster : oc cluster up --skip-registry-check
+*Start cluster : `oc cluster up --skip-registry-check`  
 *go to console : https://127.0.0.1:8443
 *install istio : ./install-istio `istio version` - ex : 1.0.5
 *wait for pods to come up 
