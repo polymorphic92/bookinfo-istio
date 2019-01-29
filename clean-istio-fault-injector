@@ -1,0 +1,6 @@
+#!/bin/bash
+
+oc delete -f "releases/istio-$1/samples/bookinfo/networking/virtual-service-all-v1.yaml"
+
+
+
